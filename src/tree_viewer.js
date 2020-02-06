@@ -1,9 +1,8 @@
-// @ts-check
 import * as im from "immutable";
 import React from "react";
 
 export function TreeViewer({ tree: initialTree, Node, NodeContainer }) {
-  const [tree] = React.useState(initialTree);
+  const [tree, setTree] = React.useState(initialTree);
   const [selectionPath, setSelectionPath] = React.useState(im.List());
 
   const getPathForDepth = depth => {
@@ -26,12 +25,29 @@ export function TreeViewer({ tree: initialTree, Node, NodeContainer }) {
     setSelectionPath(nextSelectionPath);
   };
 
+  const addNode = (depth, child) => {
+    const pathForParent = getPathForDepth(depth - 1);
+    if (pathForParent == null || pathForParent.size === 0) {
+      const nextTree = tree.push(child);
+      setTree(nextTree);
+      return;
+    }
+
+    const pathForSiblings = [...pathForParent, "children"];
+    const nextTree = tree.setIn(
+      pathForSiblings,
+      tree.getIn(pathForSiblings).push(child)
+    );
+    setTree(nextTree);
+  };
+
   return (
     <TreeViewerImpl
       depth={0}
       tree={tree}
       selectNode={selectNode}
       getSelectedNodeAtDepth={getSelectedNodeAtDepth}
+      addNode={addNode}
       Node={Node}
       NodeContainer={NodeContainer}
     />
@@ -43,13 +59,14 @@ function TreeViewerImpl({
   tree,
   selectNode,
   getSelectedNodeAtDepth,
+  addNode,
   Node,
   NodeContainer
 }) {
   const selectedNode = getSelectedNodeAtDepth(depth);
   return (
     <>
-      <NodeContainer>
+      <NodeContainer addNode={node => addNode(depth, node)}>
         {tree.map((node, index) => {
           const onClick = () => selectNode(depth, index);
           return (
@@ -64,10 +81,11 @@ function TreeViewerImpl({
           );
         })}
       </NodeContainer>
-      {selectedNode && selectedNode.children.size > 0 && (
+      {selectedNode && (
         <TreeViewerImpl
           depth={depth + 1}
           tree={selectedNode.children}
+          addNode={addNode}
           selectNode={selectNode}
           getSelectedNodeAtDepth={getSelectedNodeAtDepth}
           Node={Node}
